@@ -1,0 +1,15 @@
+.env
+*.env
+!.env.example
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+archive/
+spark-warehouse/
+metastore_db/
+derby.log
+*.log
+.DS_Store
+.idea/
+.vscode/

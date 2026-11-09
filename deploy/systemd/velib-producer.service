@@ -1,0 +1,18 @@
+[Unit]
+Description=Vélib' Pulse - Vélib' GBFS producer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=velib
+WorkingDirectory=/opt/velib-pulse/producers
+EnvironmentFile=/etc/velib-pulse/producers.env
+# Before Kafka exists, add --archive-only (see README, "Start collecting now")
+ExecStart=/opt/velib-pulse/.venv/bin/python velib_producer.py
+Restart=always
+RestartSec=10
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

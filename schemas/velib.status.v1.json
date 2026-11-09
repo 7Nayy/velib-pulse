@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "velib.status value, schema_version 1",
+  "description": "One Vélib' station at one feed snapshot. Kafka key = station_id. All times UTC (ISO 8601, Z).",
+  "type": "object",
+  "required": ["schema_version", "event_id", "station_id", "event_time", "ingest_time", "bikes", "docks"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "event_id":      {"type": "string", "description": "sha1(station_id|snapshot epoch) - dedup key"},
+    "station_id":    {"type": "string"},
+    "station_code":  {"type": ["string", "null"], "description": "operator code shown on the terminal"},
+    "event_time":    {"type": "string", "format": "date-time", "description": "feed snapshot time (lastUpdatedOther) - EVENT TIME"},
+    "last_reported": {"type": ["string", "null"], "format": "date-time", "description": "last time the station terminal reported"},
+    "ingest_time":   {"type": "string", "format": "date-time", "description": "time the producer built the message"},
+    "bikes":         {"type": "integer", "minimum": 0},
+    "mechanical":    {"type": ["integer", "null"], "minimum": 0},
+    "ebike":         {"type": ["integer", "null"], "minimum": 0},
+    "docks":         {"type": "integer", "minimum": 0},
+    "is_installed":  {"type": ["integer", "null"], "enum": [0, 1, null]},
+    "is_renting":    {"type": ["integer", "null"], "enum": [0, 1, null]},
+    "is_returning":  {"type": ["integer", "null"], "enum": [0, 1, null]},
+    "source":        {"const": "velib_gbfs"}
+  }
+}

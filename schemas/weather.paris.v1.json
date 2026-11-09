@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "weather.paris value, schema_version 1",
+  "description": "Open-Meteo current conditions for one point, 15-minute grid. Kafka key = point_id. Times UTC.",
+  "type": "object",
+  "required": ["schema_version", "event_id", "point_id", "event_time", "ingest_time"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "event_id":       {"type": "string", "description": "sha1(point_id|event_time)"},
+    "point_id":       {"type": "string", "enum": ["paris_center", "west", "east", "south"]},
+    "lat": {"type": "number"}, "lon": {"type": "number"},
+    "event_time":     {"type": "string", "format": "date-time"},
+    "ingest_time":    {"type": "string", "format": "date-time"},
+    "temperature_2m": {"type": ["number", "null"], "description": "°C"},
+    "apparent_temperature": {"type": ["number", "null"], "description": "°C"},
+    "precipitation":  {"type": ["number", "null"], "description": "mm over the preceding 15 min"},
+    "rain":           {"type": ["number", "null"], "description": "mm"},
+    "wind_speed_10m": {"type": ["number", "null"], "description": "km/h"},
+    "cloud_cover":    {"type": ["number", "null"], "description": "%"},
+    "weather_code":   {"type": ["integer", "null"], "description": "WMO code"},
+    "is_day":         {"type": ["integer", "null"]},
+    "source":         {"const": "open_meteo"}
+  }
+}

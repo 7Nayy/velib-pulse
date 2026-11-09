@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "velib.station_info value, schema_version 1",
+  "description": "Station metadata, published hourly to a compacted topic. Kafka key = station_id.",
+  "type": "object",
+  "required": ["schema_version", "station_id", "lat", "lon", "capacity", "event_time"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "station_id":   {"type": "string"},
+    "station_code": {"type": ["string", "null"]},
+    "name":         {"type": ["string", "null"]},
+    "lat":          {"type": "number"},
+    "lon":          {"type": "number"},
+    "capacity":     {"type": ["integer", "null"]},
+    "event_time":   {"type": "string", "format": "date-time"},
+    "ingest_time":  {"type": "string", "format": "date-time"},
+    "source":       {"const": "velib_gbfs"}
+  }
+}

@@ -1,0 +1,3 @@
+# Append to /etc/hosts on BOTH VMs (private Azure IPs). Config files use names, never IPs.
+10.0.0.4   vm1 namenode resourcemanager kafka1
+10.0.0.5   vm2 worker1 tsdb grafana
