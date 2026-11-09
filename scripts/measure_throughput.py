@@ -2,6 +2,8 @@
 
 Polls station_status.json for --minutes and reports snapshots, events,
 events/s, changed stations per snapshot and average message size.
+Snapshots are deduplicated with the producer's rule (is_new_snapshot), so the
+numbers match what velib_producer.py actually publishes.
 Needs only `requests`; run it from a VM:  python3 scripts/measure_throughput.py --minutes 10
 """
 from __future__ import annotations
@@ -16,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "producers"))
 
 import requests  # noqa: E402
 
-from velib_producer import DEFAULT_BASE, status_events  # noqa: E402
+from velib_producer import DEFAULT_BASE, is_new_snapshot, status_events  # noqa: E402
 
 
 def main() -> None:
@@ -27,13 +29,18 @@ def main() -> None:
 
     s = requests.Session()
     end = time.time() + args.minutes * 60
-    seen, total, sizes, changed = set(), 0, [], []
+    seen, raw_seen, total, sizes, changed = set(), set(), 0, [], []
     prev: dict[str, tuple] = {}
+    last_snap = None
     while time.time() < end:
         doc = s.get(f"{DEFAULT_BASE}/station_status.json", timeout=15).json()
         snap, evs = status_events(doc, "")
-        if snap not in seen:
+        if snap not in raw_seen and not is_new_snapshot(last_snap, snap):
+            print(f"snapshot {snap}: replica of {last_snap}, skipped", flush=True)
+        raw_seen.add(snap)
+        if is_new_snapshot(last_snap, snap):
             seen.add(snap)
+            last_snap = snap
             total += len(evs)
             sizes += [len(json.dumps(e, separators=(",", ":"))) for e in evs[:200]]
             cur = {e["station_id"]: (e["bikes"], e["docks"], e["mechanical"], e["ebike"]) for e in evs}
@@ -46,7 +53,7 @@ def main() -> None:
     dur = args.minutes * 60
     print("\n--- result ---")
     print(f"distinct snapshots : {len(seen)} in {args.minutes:g} min "
-          f"(one every {dur / max(len(seen), 1):.0f} s)")
+          f"(one every {dur / max(len(seen), 1):.0f} s; {len(raw_seen)} raw timestamps incl. replicas)")
     print(f"events             : {total}  ->  {total / dur:.1f} events/s on average")
     if sizes:
         print(f"avg message size   : {sum(sizes) / len(sizes):.0f} bytes (JSON, uncompressed)")

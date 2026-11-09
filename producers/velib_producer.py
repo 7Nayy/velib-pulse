@@ -2,7 +2,8 @@
 
 Polls station_status.json every POLL_SECONDS (default 60 s, the feed's refresh
 rate) and publishes one message per station to `velib.status`, keyed by
-station_id. Every hour it also publishes station_information.json to the
+station_id. A snapshot less than MIN_SNAPSHOT_GAP_S after the last published
+one is a replica serving the same refresh and is skipped. Every hour it also publishes station_information.json to the
 compacted topic `velib.station_info` (capacity, coordinates, name).
 
 Modes
@@ -29,6 +30,10 @@ DEFAULT_BASE = "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_M
 TOPIC_STATUS = "velib.status"
 TOPIC_INFO = "velib.station_info"
 INFO_EVERY_S = 3600
+# The feed is served by several replicas that answer in turn: one may stamp the same refresh
+# 1 s later, or still serve the previous one. Real refreshes are ~60 s apart, so anything
+# closer than this to the last published snapshot (or older) is the same refresh again.
+MIN_SNAPSHOT_GAP_S = 30
 
 
 def _int(v: Any) -> Optional[int]:
@@ -92,6 +97,10 @@ def status_events(doc: dict, ingest_time: str) -> tuple[Optional[int], list[dict
     return snap_ts, events
 
 
+def is_new_snapshot(last_snap: Optional[int], snap_ts: int) -> bool:
+    return last_snap is None or snap_ts >= last_snap + MIN_SNAPSHOT_GAP_S
+
+
 def info_events(doc: dict, ingest_time: str) -> list[dict]:
     snap_ts = feed_timestamp(doc) or int(time.time())
     out = []
@@ -140,8 +149,9 @@ class VelibProducer:
 
         doc = get_json(self.session, f"{self.base}/station_status.json")
         snap_ts, events = status_events(doc, utc_now_iso())
-        if snap_ts == self.last_snap:
-            log.info("feed not refreshed yet (snapshot %s), skipping", epoch_to_iso(snap_ts))
+        if not is_new_snapshot(self.last_snap, snap_ts):
+            log.info("feed not refreshed yet (snapshot %s, last published %s), skipping",
+                     epoch_to_iso(snap_ts), epoch_to_iso(self.last_snap))
             return
         self._emit(TOPIC_STATUS, events)
         self.last_snap = snap_ts

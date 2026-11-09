@@ -21,6 +21,24 @@ Open-Meteo (15 min) ─┴─> Python producers ─> Kafka ─> Spark Structured
 
 Report 1 (Data, Service & ML brief) is delivered separately.
 
+## Measured source throughput
+
+`scripts/measure_throughput.py --minutes 10`, run on 2026-11-09 (Sunday, early afternoon, Paris):
+
+| Metric | Value |
+|---|---|
+| Refresh rate | 10 snapshots in 10 min — one every **60 s** (the feed's `ttl=3600` is not reliable) |
+| Stations per snapshot | 1 520 |
+| Events | 15 200 → **25.3 events/s** on average, ≈ 2.2 M messages/day |
+| Message size | 331 bytes (JSON, uncompressed) → ≈ 8.4 KB/s, ≈ 725 MB/day before compression |
+| Stations changed | 155 per snapshot on average (≈ 10 %) |
+
+The feed is served by several replicas that answer in turn: the same refresh can come back stamped
+1 s later, or a lagging replica can still serve the previous one. A naive "new timestamp ⇒ new
+snapshot" rule counted 16 snapshots (40 events/s, +60 %) in the first run. The producer and the
+measurement script therefore only accept a snapshot at least `MIN_SNAPSHOT_GAP_S` (30 s) after the
+last published one.
+
 ## Repository layout
 
 ```

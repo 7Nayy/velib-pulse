@@ -8,7 +8,7 @@ sys.path.insert(0, str(ROOT / "producers"))
 
 import jsonschema  # noqa: E402
 from common import NdjsonArchive  # noqa: E402
-from velib_producer import VelibProducer, bike_types, status_events  # noqa: E402
+from velib_producer import VelibProducer, bike_types, is_new_snapshot, status_events  # noqa: E402
 from weather_producer import to_event  # noqa: E402
 
 FIX = json.loads((ROOT / "tests/fixtures/station_status.json").read_text())
@@ -71,6 +71,31 @@ def test_tick_skips_same_snapshot_and_archives(tmp_path, monkeypatch):
     assert len(files) == 1
     with gzip.open(files[0], "rt") as fh:
         assert len(fh.readlines()) == 2
+
+
+def test_is_new_snapshot():
+    assert is_new_snapshot(None, 1000)
+    assert not is_new_snapshot(1000, 1000)
+    assert not is_new_snapshot(1000, 1001)  # replica stamping the same refresh 1 s later
+    assert not is_new_snapshot(1000, 939)   # replica still serving the previous refresh
+    assert is_new_snapshot(1000, 1061)
+
+
+def test_tick_skips_replica_snapshots(monkeypatch):
+    import velib_producer as vp
+
+    ts = FIX["lastUpdatedOther"]
+    # replica order seen on the live feed: t, t+1 (same refresh), t-61 (lagging), t+61 (next refresh)
+    feeds = iter([{**FIX, "lastUpdatedOther": t} for t in (ts, ts + 1, ts - 61, ts + 61)])
+    monkeypatch.setattr(vp, "get_json", lambda _s, url, **_: next(feeds))
+    sink = FakeSink()
+    p = VelibProducer("http://x", sink, None)
+    p.last_info = float("inf")  # no station_info fetch
+    for _ in range(4):
+        p.tick()
+    snaps = sorted({m[2]["event_time"] for m in sink.msgs})
+    assert len(sink.msgs) == 4 and len(snaps) == 2
+    assert p.last_snap == ts + 61
 
 
 def test_weather_event_is_utc():
